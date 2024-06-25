@@ -1,0 +1,103 @@
+version: '3.7'
+
+services:
+  db:
+    image: mysql:5.7
+    deploy:
+      replicas: 1
+    ulimits:
+      nofile: 
+        soft: 1048576
+        hard: 1048576
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wp_user
+      MYSQL_PASSWORD: wp_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - my_network
+
+  mysql-exporter:
+    image: prom/mysqld-exporter
+    command: 
+     - --config.my-cnf=/cfg/.my.cnf
+     - --mysqld.address=db:3306
+    volumes:
+      - "./.my.cnf:/cfg/.my.cnf"
+    ports:
+      - 9104:9104
+    networks:
+      - my_network
+
+  redis:
+    image: redis:latest
+    deploy:
+      replicas: 1
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - my_network
+
+  wordpress:
+    image: wordpress:latest
+    deploy:
+      replicas: 1
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wp_user
+      WORDPRESS_DB_PASSWORD: wp_password
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wordpress_data:/var/www/html
+    ports:
+      - "8080:80"
+    networks:
+      - my_network
+
+  prometheus:
+    image: prom/prometheus
+    deploy:
+      replicas: 1
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - my_network
+
+  grafana:
+    image: grafana/grafana:latest
+    deploy:
+      replicas: 1
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - my_network
+
+  cadvisor:
+    image: google/cadvisor:latest
+    ports:
+      - "8081:8080"
+    networks:
+      - my_network
+
+networks:
+  my_network:
+
+volumes:
+  mysql_data:
+  redis_data:
+  wordpress_data:
+  prometheus_data:
+  grafana_data:
+
